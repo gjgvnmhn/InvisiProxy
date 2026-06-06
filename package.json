@@ -20,8 +20,7 @@
     "proxy-validator": "node proxyServiceValidator.js",
     "workflow-test": "node run-command.mjs workflow",
     "deployment": "pnpm install && pnpm run build && node backend.js",
-    "prepare:uv": "bash lib/setup-ultraviolet.sh",
-    "postinstall": "pnpm run prepare:uv && playwright install chromium"
+    "postinstall": "playwright install chromium"
   },
   "keywords": [
     "proxy",
@@ -38,7 +37,7 @@
     "@mercuryworkshop/libcurl-transport": "^2.0.5",
     "@mercuryworkshop/scramjet": "2.0.67-alpha.1",
     "@mercuryworkshop/scramjet-controller": "0.0.13",
-    "@titaniumnetwork-dev/ultraviolet": "file:./lib/ultraviolet",
+    "@titaniumnetwork-dev/ultraviolet": "https://github.com/titaniumnetwork-dev/Ultraviolet/releases/download/v3.2.8/titaniumnetwork-dev-ultraviolet-headers.tgz",
     "axios": "^1.17.0",
     "chii": "^1.15.5",
     "fastify": "^5.8.5",
