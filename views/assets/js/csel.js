@@ -199,6 +199,79 @@ if (document.getElementById('csel')) {
     }
   });
 
+  const wispUrlValidate = (raw) => {
+    const trimmed = (raw || '').trim();
+    if (!trimmed) return { ok: true, value: '' };
+    try {
+      if (/^wss?:\/\//i.test(trimmed)) {
+        new URL(trimmed);
+        return { ok: true, value: trimmed };
+      }
+      if (trimmed.startsWith('/')) return { ok: true, value: trimmed };
+      new URL('wss://' + trimmed.replace(/\/+$/, '') + '/');
+      return { ok: true, value: trimmed };
+    } catch (err) {
+      return { ok: false, value: trimmed };
+    }
+  };
+
+  const wispUrlForms = document.querySelectorAll('.wisp-url-form');
+  if (wispUrlForms.length) {
+    const collectInputs = () =>
+      Array.from(wispUrlForms)
+        .map((f) => f.querySelector('input.wisp-url'))
+        .filter(Boolean);
+    const syncInputs = (value, exclude) => {
+      collectInputs().forEach((inp) => {
+        if (inp !== exclude) inp.value = value;
+      });
+    };
+
+    const initial = readStorage('WispUrl') || '';
+    collectInputs().forEach((inp) => (inp.value = initial));
+
+    wispUrlForms.forEach((form) => {
+      const wispInput = form.querySelector('input.wisp-url');
+      const wispReset = form.querySelector('.wisp-url-reset');
+
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (!wispInput) return;
+        const result = wispUrlValidate(wispInput.value);
+        if (!result.ok) {
+          alert(
+            'Invalid Wisp URL. Use ws://, wss://, a path like /wisp/, or a hostname.'
+          );
+          return;
+        }
+        if (result.value === '') removeStorage('WispUrl');
+        else setStorage('WispUrl', result.value);
+        syncInputs(result.value, wispInput);
+        location.reload();
+      });
+
+      if (wispReset)
+        wispReset.addEventListener('click', () => {
+          if (!wispInput) return;
+          if (!readStorage('WispUrl')) {
+            wispInput.value = '';
+            syncInputs('', wispInput);
+            return;
+          }
+          if (!confirm('Reset the Wisp URL to default?')) return;
+          removeStorage('WispUrl');
+          wispInput.value = '';
+          syncInputs('', wispInput);
+          location.reload();
+        });
+
+      if (wispInput)
+        wispInput.addEventListener('input', () => {
+          syncInputs(wispInput.value, wispInput);
+        });
+    });
+  }
+
   // Allow users to set a custom favicon with the UI.
   attachEventListener('iconform', 'submit', (e) => {
     e.preventDefault();
@@ -452,6 +525,11 @@ if (document.getElementById('csel')) {
     if (e.isTrusted) location.reload();
   });
 
+  attachClassEventListener('newtabframe', 'change', (e) => {
+    if (checkBooleanState(e.target) === true) setStorage('OpenInNewTab', true);
+    else removeStorage('OpenInNewTab');
+  });
+
   attachClassEventListener('region-list', 'change', (e) => {
     const isOff = checkBooleanState(e.target) === false;
     isOff
@@ -589,5 +667,11 @@ useStorageArgs('LaunchType', (s) => {
     document.getElementsByClassName('cloak-type-list'),
     s || 'none'
   )();
+});
+
+useStorageArgs('OpenInNewTab', (s) => {
+  if (s === true) {
+    classUpdateHandler(document.getElementsByClassName('newtabframe'), 'on')();
+  }
 });
 })();

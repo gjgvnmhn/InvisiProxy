@@ -2,11 +2,42 @@
   const swRoutes = ['{{route}}{{/sw.js}}', '{{route}}{{/sw-blacklist.js}}'],
     swScope = '{{route}}{{/}}',
     swAllowedHostnames = ['localhost', '127.0.0.1'],
-    wispUrl =
+    defaultWispUrl =
       (location.protocol === 'https:' ? 'wss' : 'ws') +
       '://' +
       location.host +
       '{{route}}{{/wisp/}}',
+    resolveWispUrl = (custom) => {
+      if (!custom || typeof custom !== 'string') return defaultWispUrl;
+      const trimmed = custom.trim();
+      if (!trimmed) return defaultWispUrl;
+      try {
+        if (/^wss?:\/\//i.test(trimmed)) return new URL(trimmed).href;
+        if (trimmed.startsWith('//')) {
+          return (
+            (location.protocol === 'https:' ? 'wss:' : 'ws:') + trimmed
+          );
+        }
+        if (trimmed.startsWith('/')) {
+          return (
+            (location.protocol === 'https:' ? 'wss' : 'ws') +
+            '://' +
+            location.host +
+            trimmed +
+            (trimmed.endsWith('/') ? '' : '/')
+          );
+        }
+        return (
+          (location.protocol === 'https:' ? 'wss' : 'ws') +
+          '://' +
+          trimmed.replace(/\/+$/, '') +
+          '/wisp/'
+        );
+      } catch (e) {
+        return defaultWispUrl;
+      }
+    },
+    getWispUrl = () => resolveWispUrl(readStorage('WispUrl')),
     proxyUrl = {
       tor: 'socks5h://localhost:9050',
       eu: 'socks5h://localhost:7000',
@@ -26,7 +57,7 @@
 
   const getTransportSelection = () => {
     const url = transports[readStorage('Transport')] || transports.default;
-    const options = { wisp: wispUrl };
+    const options = { wisp: getWispUrl() };
     if ('string' === typeof readStorage('UseSocks5'))
       options.proxy = proxyUrl[readStorage('UseSocks5')];
     return { url, options };

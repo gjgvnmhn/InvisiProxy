@@ -11,11 +11,11 @@ This will be our nonexhaustive todo list for InvisiProxy LTS v6.x.x and above. R
 ## Proxy/Site Functionality
 - [ ] Add bookmarks menu (source wise already present pretty much)
 - [ ] Add Chii + ensuring users can access devtools while browsing - partial
-- [ ] Omnibox should state what the current site the user is on like a proper URL bar 
-- [ ] Improve adblocking functions on site using Workerware + a pre-bundled uBlock Origin
-- [ ] Implement advanced data URI system
-- [ ] Allow custom Wisp urls from the settings menu (not config side)
-- [ ] Setting to open multiple stealth frames; basically about:blank but using our system. Pops out in another tab
+- [x] Omnibox should state what the current site the user is on like a proper URL bar - done
+- [x] Improve adblocking functions on site using Workerware + a pre-bundled uBlock Origin - done
+- [x] Implement advanced data URI system - done
+- [x] Allow custom Wisp urls from the settings menu (not config side) - done
+- [x] Setting to open multiple stealth frames; basically about:blank but using our system. Pops out in another tab - done
 - [x] Update to Scramjet v2.0.67-alpha - done
 - [x] Update to use scramjetFrame instead of our own window handling (or whatever 2.0.67-alpha requires) - done
 - [x] Swap to pnpm and node 26 - done

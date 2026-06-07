@@ -40,6 +40,9 @@
       <button title="Back"><i class="fas fa-arrow-left"></i></button>
       <button title="Forward"><i class="fas fa-arrow-right"></i></button>
       <button title="Refresh"><i class="fas fa-redo-alt"></i></button>
+      <button title="New Stealth Tab" id="new-stealth-tab">
+        <i class="fas fa-external-link-alt"></i>
+      </button>
       <div class="search-box">
         <input
           class="glowbutton"
@@ -85,7 +88,97 @@
       const backArrow = omnibar.querySelector("[title='Back' i]");
       const forwardArrow = omnibar.querySelector("[title='Forward' i]");
       const reloadArrow = omnibar.querySelector("[title='Refresh' i]");
+      const newTabButton = document.getElementById('new-stealth-tab');
+      const searchInput = document.getElementById('search-input');
       let hidden = false;
+
+      let currentRealUrl = '';
+      let userIsEditing = false;
+      let lastSyncedValue = '';
+
+      const SJ_PATH_PREFIX = '{{route}}{{/scram/network/}}';
+      const UV_PATH_PREFIX_FALLBACK = '{{route}}{{/uv/service/}}';
+
+      const tryDecodeScramjetUrl = (raw) => {
+        try {
+          const parsed = new URL(raw, location.origin);
+          const path = parsed.pathname;
+          if (path.startsWith(SJ_PATH_PREFIX)) {
+            const rest = path.slice(SJ_PATH_PREFIX.length);
+            const decoded = decodeURIComponent(rest);
+            const match = decoded.match(/https?:\/\/[^\s]+/);
+            if (match) return match[0] + (parsed.search || '') + (parsed.hash || '');
+          }
+          return null;
+        } catch (e) {
+          return null;
+        }
+      };
+
+      const tryDecodeUvUrl = (raw) => {
+        try {
+          const parsed = new URL(raw, location.origin);
+          const cfg = self['{{__uv$config}}'];
+          if (!cfg || typeof cfg.decodeUrl !== 'function') return null;
+          const prefix = cfg.prefix || UV_PATH_PREFIX_FALLBACK;
+          if (!parsed.pathname.startsWith(prefix)) return null;
+          return cfg.decodeUrl(parsed.pathname.slice(prefix.length));
+        } catch (e) {
+          return null;
+        }
+      };
+
+      const computeDisplayUrl = () => {
+        let frameHref = '';
+        try {
+          frameHref = windowFrame.contentWindow.location.href || '';
+        } catch (e) {
+          frameHref = windowFrame.getAttribute('src') || '';
+        }
+        if (!frameHref || frameHref === 'about:blank') return '';
+
+        const sjDecoded = tryDecodeScramjetUrl(frameHref);
+        if (sjDecoded) return sjDecoded;
+        const uvDecoded = tryDecodeUvUrl(frameHref);
+        if (uvDecoded) return uvDecoded;
+
+        return frameHref;
+      };
+
+      const syncOmnibox = () => {
+        if (userIsEditing) return;
+        const display = computeDisplayUrl();
+        currentRealUrl = display;
+        if (!searchInput) return;
+        if (lastSyncedValue === display) return;
+        searchInput.value = display;
+        lastSyncedValue = display;
+      };
+
+      if (searchInput) {
+        searchInput.addEventListener('focus', () => {
+          userIsEditing = true;
+        });
+        searchInput.addEventListener('blur', () => {
+          userIsEditing = false;
+          setTimeout(syncOmnibox, 50);
+        });
+      }
+
+      if (newTabButton) {
+        newTabButton.addEventListener('click', () => {
+          const target = computeDisplayUrl() || currentRealUrl || '';
+          try {
+            const framePath = '{{route}}{{/s}}';
+            const url = new URL(framePath, location.origin);
+            if (target) url.searchParams.set('url', target);
+            url.searchParams.set('cache', String(Date.now()));
+            window.open(url.href, '_blank');
+          } catch (e) {
+            window.open('{{route}}{{/s}}', '_blank');
+          }
+        });
+      }
 
       toggle.addEventListener('click', () => {
         hidden = !hidden;
@@ -167,22 +260,87 @@
       // Reattach load events whenever the content window has changed.
       const loadHandler = () => {
         setTimeout(() => {
-          windowFrame.contentWindow.addEventListener('beforeunload', () => {
-            loader.classList.toggle('loader-active', true);
-            loaderTimeout(5000);
-          });
-          windowFrame.contentWindow.addEventListener('unload', loadHandler);
-          windowFrame.contentWindow.addEventListener(
-            'readystatechange',
-            updateLoader
-          );
+          try {
+            windowFrame.contentWindow.addEventListener('beforeunload', () => {
+              loader.classList.toggle('loader-active', true);
+              loaderTimeout(5000);
+            });
+            windowFrame.contentWindow.addEventListener('unload', loadHandler);
+            windowFrame.contentWindow.addEventListener(
+              'readystatechange',
+              updateLoader
+            );
+            windowFrame.contentWindow.addEventListener('hashchange', syncOmnibox);
+            windowFrame.contentWindow.addEventListener('popstate', syncOmnibox);
+          } catch {}
           updateLoader();
+          syncOmnibox();
           applySandbox();
         });
       };
 
-      windowFrame.addEventListener('load', updateLoader);
+      windowFrame.addEventListener('load', () => {
+        updateLoader();
+        syncOmnibox();
+      });
       loadHandler();
+
+      setInterval(() => {
+        if (!userIsEditing) syncOmnibox();
+      }, 1500);
+
+      const cosmeticPending = new Map();
+      navigator.serviceWorker?.addEventListener?.('message', (e) => {
+        if (!e.data || e.data.type !== 'invisi-ubo-cosmetic-reply') return;
+        const cb = cosmeticPending.get(e.data.id);
+        if (cb) {
+          cosmeticPending.delete(e.data.id);
+          cb(e.data.selectors || []);
+        }
+      });
+      const requestCosmetics = (host) => {
+        if (!navigator.serviceWorker?.controller || !host)
+          return Promise.resolve([]);
+        return new Promise((resolve) => {
+          const id =
+            (crypto.randomUUID && crypto.randomUUID()) ||
+            String(Math.random()).slice(2);
+          cosmeticPending.set(id, resolve);
+          navigator.serviceWorker.controller.postMessage({
+            type: 'invisi-ubo-cosmetic',
+            id,
+            host,
+          });
+          setTimeout(() => {
+            if (cosmeticPending.has(id)) {
+              cosmeticPending.delete(id);
+              resolve([]);
+            }
+          }, 1500);
+        });
+      };
+      const applyCosmetics = async () => {
+        const display = computeDisplayUrl();
+        let host = '';
+        try {
+          host = new URL(display, location.origin).hostname;
+        } catch {}
+        if (!host) return;
+        const selectors = await requestCosmetics(host);
+        if (!selectors.length) return;
+        try {
+          const doc = windowFrame.contentWindow?.document;
+          if (!doc) return;
+          let style = doc.getElementById('__invisi_cosmetic');
+          if (!style) {
+            style = doc.createElement('style');
+            style.id = '__invisi_cosmetic';
+            (doc.head || doc.documentElement).appendChild(style);
+          }
+          style.textContent = selectors.join(',') + '{display:none!important;}';
+        } catch {}
+      };
+      windowFrame.addEventListener('load', applyCosmetics);
     </script>
   </body>
 </html>

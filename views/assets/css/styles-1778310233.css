@@ -2139,6 +2139,146 @@ input[type='text'] {
   width: 20%;
 }
 
+.wisp-box {
+  margin: 14px auto 18px;
+  max-width: 720px;
+  padding: 0 12px;
+  text-align: center;
+}
+
+.wisp-box .cseltitle {
+  margin-bottom: 10px;
+}
+
+.wisp-url-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: stretch;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.wisp-url-form input.wisp-url {
+  flex: 1 1 320px;
+  min-width: 0;
+  padding: 10px 12px;
+  margin: 3px;
+  vertical-align: baseline;
+  background-color: var(--nord0);
+  color: var(--html-color, white);
+  border: 1px solid var(--nord1);
+  border-radius: 5px;
+  font-family: 'Montserrat Alternates', sans-serif;
+  font-size: 20px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.wisp-url-form input.wisp-url::placeholder {
+  color: var(--gray);
+}
+
+.wisp-url-form input.wisp-url:focus {
+  animation: glowshadow 2s linear infinite;
+}
+
+.wisp-url-form input[type='submit'].pr-button,
+.wisp-url-form .wisp-url-reset.pr-button {
+  flex: 0 0 auto;
+  min-width: 96px;
+  padding: 10px 16px;
+  margin: 3px;
+  vertical-align: baseline;
+  outline: none;
+  border-radius: 5px;
+  color: var(--html-color, white);
+  font-family: 'Montserrat Alternates', sans-serif;
+  font-size: 20px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 600px) {
+  .wisp-url-form {
+    flex-direction: column;
+  }
+  .wisp-url-form input.wisp-url,
+  .wisp-url-form input[type='submit'],
+  .wisp-url-form .wisp-url-reset {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+#csel .wisp-url-form-compact {
+  margin: 0 0 15px;
+  width: 100%;
+  max-width: none;
+  padding: 0;
+  text-align: left;
+}
+
+#csel .wisp-url-form-compact input.wisp-url {
+  flex: 1 1 100%;
+  min-width: 0;
+  margin: 5px 0;
+  padding: 10px 12px;
+  font-family: 'Figtree', sans-serif;
+  font-size: 16px;
+  font-weight: normal;
+  letter-spacing: normal;
+  text-transform: none;
+  background-color: var(--nord0);
+  color: var(--nord6);
+  border: 1px solid var(--nord11);
+  border-radius: 5px;
+  vertical-align: middle;
+  outline: none;
+  box-sizing: border-box;
+  animation: none;
+}
+
+#csel .wisp-url-form-compact input.wisp-url::placeholder {
+  color: var(--nord3);
+}
+
+#csel .wisp-url-form-compact input.wisp-url:focus {
+  animation: none;
+  box-shadow: inset 0 0 5px 0 var(--csel-input, var(--nord3));
+  transition: box-shadow 0.15s ease-out;
+}
+
+#csel .wisp-url-form-compact input[type='submit'],
+#csel .wisp-url-form-compact .wisp-url-reset {
+  flex: 1 1 calc(50% - 5px);
+  min-width: 0;
+  margin: 5px 0;
+  padding: 10px 12px;
+  font-family: 'Figtree', sans-serif;
+  font-size: 16px;
+  font-weight: normal;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--nord6);
+  background-color: var(--nord0);
+  border: 1px solid var(--nord11);
+  border-radius: 5px;
+  cursor: pointer;
+  outline: none;
+  box-sizing: border-box;
+  transition: background-color 0.3s ease, color 0.3s ease, transform 0.3s ease;
+}
+
+#csel .wisp-url-form-compact input[type='submit']:hover,
+#csel .wisp-url-form-compact .wisp-url-reset:hover {
+  transform: scale(1.05);
+}
+
+#csel .wisp-url-form-compact input[type='submit']:active,
+#csel .wisp-url-form-compact .wisp-url-reset:active {
+  background-color: #78b0c0;
+}
+
 /* Stealth Mode IFrame */
 
 #frame {

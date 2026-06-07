@@ -53,6 +53,35 @@
 
   <div class="wisp-box">
     <p class="cseltitle">
+      {{mask}}{{Wisp Protocol URL}}
+      <span
+        class="pr-tippy"
+        data-tippy-content="{{mask}}{{Use only if you know what you are doing. This is the URL used for the Wisp Protocol, which is a custom protocol designed for proxying multiple TCP sockets over a single websocket connection. TLDR: This is an advanced setting that should only be changed if you have a specific reason to do so, such as using a custom Wisp server or troubleshooting connectivity issues.}}"
+        >(?)
+      </span>
+    </p>
+    <form id="wispurlform" class="cloakform wisp-url-form" autocomplete="off">
+      <input
+        type="text"
+        class="wisp-url glowbutton"
+        placeholder="wss://example.com/wisp/"
+        spellcheck="false"
+        autocomplete="off"
+      />
+      <input
+        type="submit"
+        class="pr-button glowbutton"
+        value="Apply"
+      />
+      <button
+        type="button"
+        class="pr-button glowbutton wisp-url-reset"
+      >Reset</button>
+    </form>
+  </div>
+
+  <div class="protocol-box">
+    <p class="cseltitle">
       {{mask}}{{Wisp Protocol Transport}}
       <span
         class="pr-tippy"

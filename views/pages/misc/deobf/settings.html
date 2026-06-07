@@ -49,6 +49,22 @@
           <input type="radio" name="{{wisp-transport}}" value="{{epoxy}}" />
         </label>
       </div>
+      <p class="cseltitle">{{mask}}{{Wisp Protocol URL}}</p>
+      <form
+        id="wispurlform-csel"
+        class="cloakform wisp-url-form wisp-url-form-compact"
+        autocomplete="off"
+      >
+        <input
+          type="text"
+          class="wisp-url"
+          placeholder="wss://example.com/wisp/"
+          spellcheck="false"
+          autocomplete="off"
+        />
+        <input type="submit" value="Apply" />
+        <button type="button" class="wisp-url-reset">Reset</button>
+      </form>
       <p class="cseltitle">Advanced Options</p>
       <div class="radio-group">
         <label>
@@ -147,6 +163,13 @@
             <option name="cloak-type" value="blank">{{mask}}{{about:blank}}</option>
             <option name="cloak-type" value="blob">{{mask}}{{blob}}</option>
           </select>
+        </label>
+        <label>
+          <p>
+            {{mask}}{{Open in New Stealth Tab}}
+            <span class="default-badge">{{mask}}{{Multi-frame browsing}}</span>
+          </p>
+          <input type="checkbox" class="switch newtabframe" />
         </label>
       </div>
     </div>

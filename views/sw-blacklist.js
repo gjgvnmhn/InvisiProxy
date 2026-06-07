@@ -1,84 +1,62 @@
+importScripts('{{route}}{{/assets/js/workerware.js}}');
+importScripts('{{route}}{{/assets/js/ubo-middleware.js}}');
 importScripts('{{route}}{{/scram/controller.sw.js}}');
 importScripts('{{route}}{{/uv/uv.bundle.js}}');
 importScripts('{{route}}{{/uv/uv.config.js}}');
 importScripts(self['{{__uv$config}}'].sw || '{{route}}{{/uv/uv.sw.js}}');
 
 const uv = new UVServiceWorker();
+self.__invisi_uv = uv;
 
-const SJ_CONTROLLER_PREFIX = '{{route}}{{/scram/network/}}';
-
-const blacklist = {};
-fetch('{{route}}{{/assets/txt/blacklist.txt}}').then((request) => {
-  request.text().then((textData) => {
-    textData
-      .split('\n')
-      .filter((domain) => domain.trim())
-      .forEach((domain) => {
-        const domainTld = domain.replace(/.+(?=\.\w)/, '');
-        if (!blacklist.hasOwnProperty(domainTld)) blacklist[domainTld] = [];
-        blacklist[domainTld].push(
-          encodeURIComponent(domain.slice(0, -domainTld.length))
-            .replace(/([()])/g, '\\$1')
-            .replace(/(\*\.)|\./g, (match, exp) =>
-              exp ? '(?:.+\\.)?' : '\\' + match
-            )
-        );
-      });
-
-    for (let [tld, domains] of Object.entries(blacklist))
-      blacklist[tld] = new RegExp(`^(?:${domains.join('|')})$`);
-    Object.freeze(blacklist);
-  });
+const ww = new self.WorkerWare({
+  debug: false,
+  timing: false,
 });
 
-const isBlacklistedDomain = (domain) => {
-  if (!domain) return false;
-  const domainTld = domain.replace(/.+(?=\.\w)/, '');
-  return (
-    blacklist.hasOwnProperty(domainTld) &&
-    blacklist[domainTld].test(domain.slice(0, -domainTld.length))
-  );
-};
+ww.use({
+  function: self.invisiUbo.fetchMiddleware,
+  name: 'ubo-network',
+  events: ['fetch'],
+});
 
-const targetHostnameForScramjet = (reqUrl) => {
-  try {
-    const path = new URL(reqUrl).pathname;
-    if (!path.startsWith(SJ_CONTROLLER_PREFIX)) return null;
-    const rest = path.slice(SJ_CONTROLLER_PREFIX.length).split('/');
-    if (rest.length < 3) return null;
-    const encoded = rest.slice(2).join('/');
-    if (!encoded) return null;
-    return new URL(decodeURIComponent(encoded)).hostname;
-  } catch {
-    return null;
+const proxyRouter = async (event) => {
+  if ($scramjetController.shouldRoute(event)) {
+    return $scramjetController.route(event);
   }
+  if (uv.route(event)) {
+    return await uv.fetch(event);
+  }
+  return fetch(event.request);
 };
+ww.use({
+  function: proxyRouter,
+  name: 'proxy-router',
+  events: ['fetch'],
+});
+
+ww.use({
+  function: self.invisiUbo.messageMiddleware,
+  name: 'ubo-cosmetic',
+  events: ['message'],
+});
 
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     (async () => {
-      if ($scramjetController.shouldRoute(event)) {
-        const hostname = targetHostnameForScramjet(event.request.url);
-        if (isBlacklistedDomain(hostname))
-          return new Response(new Blob(), { status: 406 });
-        return $scramjetController.route(event);
-      }
-
-      if (uv.route(event)) {
-        try {
-          const hostname = new URL(
-            uv.config.decodeUrl(
-              new URL(event.request.url).pathname.replace(uv.config.prefix, '')
-            )
-          ).hostname;
-          if (isBlacklistedDomain(hostname))
-            return new Response(new Blob(), { status: 406 });
-        } catch {
+      const result = await ww.run(event)();
+      if (result instanceof Response) return result;
+      if (Array.isArray(result)) {
+        for (let i = result.length - 1; i >= 0; i--) {
+          if (result[i] instanceof Response) return result[i];
         }
-        return await uv.fetch(event);
       }
-
       return fetch(event.request);
     })()
+  );
+});
+
+self.addEventListener('message', (event) => {
+  ww.run(event)().catch((err) =>
+    console.error('message middleware failed:', err)
   );
 });

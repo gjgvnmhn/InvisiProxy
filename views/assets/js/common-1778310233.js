@@ -21,20 +21,88 @@ const SJ_PREFIX_TAG = 'sj:';
 const getDomain = () =>
     location.host.replace(/^(?:www|beta)\./, ''),
   // This is used for stealth mode when visiting external sites.
-  goFrame = (url) => {
+  goFrame = (url, opts = {}) => {
+    const newTab = opts && opts.newTab;
+    if (newTab) {
+      const framePath = '{{route}}{{/s}}';
+      try {
+        const target = new URL(framePath, location.origin);
+        target.searchParams.set('url', url);
+        target.searchParams.set('cache', String(Date.now()));
+        const win = window.open(target.href, '_blank');
+        return win;
+      } catch {
+      }
+    }
     localStorage.setItem(FRAME_URL_KEY, url);
     if (location.pathname !== '{{route}}{{/s}}')
       location.href = '{{route}}{{/s}}?cache={{cacheVal}}';
     else navigateLocalFrame(url);
   },
+  DIRECT_LOAD_SCHEMES = ['data:', 'blob:', 'about:', 'javascript:', 'view-source:'],
+  isDirectLoadUri = (str) => {
+    if (typeof str !== 'string') return false;
+    const lower = str.trimStart().toLowerCase();
+    return DIRECT_LOAD_SCHEMES.some((s) => lower.startsWith(s));
+  },
+  buildDataUri = (mime, payload, { base64 = true } = {}) => {
+    mime = mime || 'text/plain';
+    if (base64) {
+      try {
+        const encoded = btoa(unescape(encodeURIComponent(payload)));
+        return `data:${mime};base64,${encoded}`;
+      } catch (e) {
+        // Fall through to URI-encoded form for unicode that btoa can't handle.
+      }
+    }
+    return `data:${mime},${encodeURIComponent(payload)}`;
+  },
+  parseDataShortcut = (input) => {
+    if (typeof input !== 'string') return null;
+    const m = input.match(/^(html|js|txt|text|json|svg|css):([\s\S]*)$/i);
+    if (!m) return null;
+    const kind = m[1].toLowerCase();
+    const body = m[2];
+    switch (kind) {
+      case 'html':
+        return buildDataUri('text/html', body);
+      case 'js':
+        return buildDataUri(
+          'text/html',
+          `<!doctype html><meta charset="utf-8"><script>${body}</script>`
+        );
+      case 'txt':
+      case 'text':
+        return buildDataUri('text/plain', body);
+      case 'json':
+        return buildDataUri('application/json', body);
+      case 'svg':
+        return buildDataUri('image/svg+xml', body);
+      case 'css':
+        return buildDataUri(
+          'text/html',
+          `<!doctype html><meta charset="utf-8"><style>${body}</style>`
+        );
+      default:
+        return null;
+    }
+  },
   navigateLocalFrame = (target) => {
     const windowFrame = document.getElementById('frame');
     if (!windowFrame || !target) return;
+    if (isDirectLoadUri(target)) {
+      windowFrame.src = target;
+      return;
+    }
     if (!target.startsWith(SJ_PREFIX_TAG)) {
       windowFrame.src = target;
       return;
     }
     const rawUrl = target.slice(SJ_PREFIX_TAG.length);
+    if (isDirectLoadUri(rawUrl)) {
+      windowFrame.src = rawUrl;
+      return;
+    }
     const tryGo = () => {
       const f = sjBundle && sjBundle.frame;
       if (f && typeof f.go === 'function') f.go(rawUrl);
@@ -47,6 +115,7 @@ const getDomain = () =>
    * See the goProx object at the bottom for some usage examples
    * on the URL handlers, omnibox functions, and the uvUrl function.
    */
+  shouldOpenInNewTab = () => readStorage('OpenInNewTab') === true,
   urlHandler = (parser) =>
     typeof parser === 'function'
       ? // Return different functions based on whether a URL has already been set.
@@ -56,20 +125,22 @@ const getDomain = () =>
           if (parser === sjUrl) mode = 'stealth';
           url = parser(url);
           mode = `${mode}`.toLowerCase();
-          if (mode === 'stealth' || mode == 1) goFrame(url);
+          if (mode === 'stealth' || mode == 1)
+            goFrame(url, { newTab: shouldOpenInNewTab() });
           else if (mode === 'window' || mode == 0) location.href = url;
           else return url;
         }
       : (mode) => {
           mode = `${mode}`.toLowerCase();
-          if (mode === 'stealth' || mode == 1) goFrame(parser);
+          if (mode === 'stealth' || mode == 1)
+            goFrame(parser, { newTab: shouldOpenInNewTab() });
           else if (mode === 'window' || mode == 0) location.href = parser;
           else return parser;
         },
   sjPreset = (rawUrl) => (mode) => {
     mode = `${mode}`.toLowerCase();
     if (mode === 'window' || mode == 0 || mode === 'stealth' || mode == 1)
-      goFrame(sjUrl(rawUrl));
+      goFrame(sjUrl(rawUrl), { newTab: shouldOpenInNewTab() });
     else return sjUrl(rawUrl);
   },
   openBlankCloak = () => {
@@ -116,7 +187,8 @@ const getDomain = () =>
     if (!url) return;
     if (typeof parser === 'function') url = await parser(url);
     mode = `${mode}`.toLowerCase();
-    if (mode === 'stealth' || mode == 1) goFrame(url);
+    if (mode === 'stealth' || mode == 1)
+      goFrame(url, { newTab: shouldOpenInNewTab() });
     else if (mode === 'window' || mode == 0) location.href = url;
     else return url;
   };
@@ -294,6 +366,14 @@ const getSearchTemplate = (
   // Like an omnibox, return the results of a search engine if search terms are
   // provided instead of a URL.
   search = (input) => {
+    if (typeof input !== 'string') input = `${input}`;
+    const trimmed = input.trim();
+
+    const shortcut = parseDataShortcut(trimmed);
+    if (shortcut) return shortcut;
+
+    if (isDirectLoadUri(trimmed)) return trimmed;
+
     try {
       // Return the input if it is already a valid URL.
       // eg: https://example.com, https://example.com/test?q=param
@@ -325,7 +405,11 @@ const getSearchTemplate = (
     }
     return url;
   },
-  sjUrl = (url) => SJ_PREFIX_TAG + search(url)
+  sjUrl = (url) => {
+    const result = search(url);
+    if (isDirectLoadUri(result)) return result;
+    return SJ_PREFIX_TAG + result;
+  }
 
 /* To use:
  * goProx.proxy(url-string, mode-as-string-or-number);
@@ -352,6 +436,13 @@ const getSearchTemplate = (
  *
  * goProx.searx();
  */
+window.$invisiData = Object.freeze({
+  buildDataUri,
+  parseDataShortcut,
+  isDirectLoadUri,
+  DIRECT_LOAD_SCHEMES: Object.freeze([...DIRECT_LOAD_SCHEMES]),
+});
+
 const preparePage = async () => {
   // This won't break the service workers as they store the variable separately.
   uvConfig = self['{{__uv$config}}'];
@@ -495,7 +586,14 @@ const preparePage = async () => {
         onCooldown = false;
 
       prUrl.addEventListener('keydown', async (e) => {
-        if (e.code === 'Enter') goProxMethod(searchMode)();
+        if (e.code === 'Enter') {
+          if ((e.ctrlKey || e.metaKey || e.shiftKey) && type === 'scramjet') {
+            const url = sjUrl(prUrl.value);
+            goFrame(url, { newTab: true });
+          } else {
+            goProxMethod(searchMode)();
+          }
+        }
         // This is exclusively used for the validator script.
         else if (e.code === 'Validator Test') {
           const rawValue = e.target.value;
@@ -607,14 +705,23 @@ const preparePage = async () => {
           })
         );
     await sjReady;
-    const target = localStorage.getItem(FRAME_URL_KEY);
+    let target = null;
+    try {
+      const params = new URLSearchParams(location.search);
+      const urlParam = params.get('url');
+      if (urlParam) {
+        target = sjUrl(urlParam);
+      }
+    } catch {
+    }
+    if (!target) target = localStorage.getItem(FRAME_URL_KEY);
     if (target) navigateLocalFrame(target);
   }
 
   const useModule = (moduleFunc, tries = 0) => {
     try {
       moduleFunc();
-    } catch (e) {
+    } catch {
       if (tries <= 5)
         setTimeout(() => {
           useModule(moduleFunc, tries + 1);
