@@ -18,13 +18,19 @@ This will be our nonexhaustive todo list for InvisiProxy LTS v6.x.x and above. R
 - Clean epoxy errors if unreleated to ProxyTransports
 
 ## Proxy/Site Functionality
+- [ ] Add EmulatorJS as alternative to webretro (more updated)
+- [ ] Updated ruffle.rs dependency 
+- [ ] Improve mobile support (epoxy should be the default; fix UI bugs)
+- [ ] Implement sandboxing techniques to prevent new tab leaks
+- [ ] Improve onboarding expierence 
 - [ ] Add bookmarks menu (source wise already present pretty much)
-- [ ] Add Chii + ensuring users can access devtools while browsing - partial
-- [ ] Omnibox should state what the current site the user is on like a proper URL bar 
-- [ ] Improve adblocking functions on site using Workerware + a pre-bundled uBlock Origin
-- [ ] Implement advanced data URI system
-- [ ] Allow custom Wisp urls from the settings menu (not config side)
-- [ ] Setting to open multiple stealth frames; basically about:blank but using our system. Pops out in another tab
+- [ ] Add Chii + ensuring users can access devtools while browsing; or utilize Scramjet playground instead - partial
+- [ ] Allow for custom SOCK5 proxy layering (HTTP and SOCKS4 scheme as well)
+- [x] Omnibox should state what the current site the user is on like a proper URL bar 
+- [x] Improve adblocking functions on site using Workerware + a pre-bundled uBlock Origin
+- [x] Implement advanced data URI system
+- [x] Allow custom Wisp urls from the settings menu (not config side)
+- [x] Setting to open multiple stealth frames; basically about:blank but using our system. Pops out in another tab
 - [x] Update to Scramjet v2.0.67-alpha - done
 - [x] Update to use scramjetFrame instead of our own window handling (or whatever 2.0.67-alpha requires) - done
 - [x] Swap to pnpm and node 26 - done
